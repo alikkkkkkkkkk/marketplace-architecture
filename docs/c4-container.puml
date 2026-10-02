@@ -1,0 +1,68 @@
+@startuml
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Marketplace - C4 Container Diagram
+
+Person(buyer, "Покупатель", "Просматривает ленту товаров и оформляет заказы")
+Person(seller, "Продавец", "Управляет своими товарами")
+
+System_Ext(payment_provider, "Payment Provider", "Внешняя платёжная система")
+System_Ext(notification_provider, "Email / SMS / Push Provider", "Доставка уведомлений")
+
+System_Boundary(marketplace, "Marketplace") {
+
+    Container(client, "Web / Mobile Client", "Web / Mobile", "Интерфейс покупателей и продавцов")
+    Container(gateway, "API Gateway", "HTTP / REST", "Единая точка входа")
+
+    Container(user_service, "User Service", "REST API", "Покупатели, продавцы и профили")
+    Container(catalog_service, "Catalog Service", "FastAPI / REST", "Товары, категории и карточки товаров")
+    Container(feed_service, "Feed Service", "REST API", "Персонализированная лента товаров")
+    Container(order_service, "Order Service", "REST API", "Создание и жизненный цикл заказов")
+    Container(payment_service, "Payment Service", "REST + Events", "Расчёт и учёт платежей")
+    Container(notification_service, "Notification Service", "Event Consumer", "Отправка уведомлений")
+
+    Container(broker, "Message Broker", "RabbitMQ", "Асинхронная доставка доменных событий")
+
+    ContainerDb(user_db, "User DB", "PostgreSQL", "Users, sellers, profiles")
+    ContainerDb(catalog_db, "Catalog DB", "PostgreSQL", "Products, categories")
+    ContainerDb(feed_db, "Feed DB", "PostgreSQL", "Preferences, interaction signals")
+    ContainerDb(order_db, "Order DB", "PostgreSQL", "Orders, order items")
+    ContainerDb(payment_db, "Payment DB", "PostgreSQL", "Payments, transactions")
+    ContainerDb(notification_db, "Notification DB", "PostgreSQL", "Notification history")
+}
+
+Rel(buyer, client, "Использует", "HTTPS")
+Rel(seller, client, "Использует", "HTTPS")
+
+Rel(client, gateway, "API requests", "HTTPS / JSON")
+
+Rel(gateway, user_service, "Пользователи", "REST / JSON")
+Rel(gateway, catalog_service, "Каталог", "REST / JSON")
+Rel(gateway, feed_service, "Лента", "REST / JSON")
+Rel(gateway, order_service, "Заказы", "REST / JSON")
+
+Rel(feed_service, catalog_service, "Получает данные товаров", "REST / JSON")
+
+Rel(user_service, user_db, "Читает / записывает")
+Rel(catalog_service, catalog_db, "Читает / записывает")
+Rel(feed_service, feed_db, "Читает / записывает")
+Rel(order_service, order_db, "Читает / записывает")
+Rel(payment_service, payment_db, "Читает / записывает")
+Rel(notification_service, notification_db, "Читает / записывает")
+
+Rel(user_service, broker, "UserProfileUpdated", "AMQP")
+Rel(catalog_service, broker, "ProductUpdated", "AMQP")
+Rel(order_service, broker, "OrderCreated / OrderStatusChanged", "AMQP")
+Rel(payment_service, broker, "PaymentSucceeded / PaymentFailed", "AMQP")
+
+Rel(broker, feed_service, "User / Catalog events", "AMQP")
+Rel(broker, payment_service, "OrderCreated", "AMQP")
+Rel(broker, order_service, "PaymentSucceeded / PaymentFailed", "AMQP")
+Rel(broker, notification_service, "Order / Payment events", "AMQP")
+
+Rel(payment_service, payment_provider, "Проводит платёж", "HTTPS")
+Rel(notification_service, notification_provider, "Отправляет уведомление", "HTTPS")
+
+@enduml
